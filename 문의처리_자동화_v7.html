@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문의 처리 자동화</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; padding: 24px 16px; }
+  .container { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .badge { background: #f0f0ee; border-radius: 999px; font-size: 11px; padding: 2px 8px; color: #888; }
+  textarea { width: 100%; height: 130px; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; background: #fafafa; color: #1a1a1a; resize: vertical; outline: none; line-height: 1.6; }
+  textarea:focus { border-color: #4a90d9; box-shadow: 0 0 0 3px rgba(74,144,217,0.1); background: #fff; }
+  textarea::placeholder { color: #bbb; }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #333; font-family: inherit; transition: all 0.15s; font-weight: 500; }
+  .btn:hover { background: #f5f5f3; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+  .btn-primary:hover:not(:disabled) { background: #2d74be; border-color: #2d74be; }
+  .btn-ghost { color: #999; border-color: transparent; background: transparent; }
+  .btn-ghost:hover { background: #f0f0ee; color: #666; }
+  .field-row { display: flex; gap: 10px; margin-bottom: 9px; align-items: center; }
+  .field-label { font-size: 12px; color: #888; width: 88px; flex-shrink: 0; }
+  input.field-input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit; background: #fff; color: #1a1a1a; outline: none; }
+  input.field-input:focus { border-color: #4a90d9; box-shadow: 0 0 0 3px rgba(74,144,217,0.1); }
+  input.field-input::placeholder { color: #ccc; }
+  input.readonly { background: #fafafa; color: #999; cursor: default; border-color: #eee; }
+  .field-fixed { flex: 1; font-size: 13px; color: #bbb; padding: 7px 2px; }
+  .sublabel { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #f0f0ee; }
+  .hint { font-size: 12px; color: #bbb; margin-top: 8px; line-height: 1.5; }
+  .mail-preview { flex: 1; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #bbb; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mail-preview.filled { color: #888; font-style: normal; }
+  .action-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 8px; }
+  .action-icon { font-size: 20px; flex-shrink: 0; }
+  .action-info { flex: 1; }
+  .action-title { font-size: 13px; font-weight: 600; }
+  .action-desc { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .pill { display: inline-flex; align-items: center; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 500; }
+  .pill-ok { background: #e8f5e0; color: #3a7d1a; }
+  .pill-warn { background: #fff3e0; color: #a05a00; }
+  .pill-err { background: #fdecea; color: #a32d2d; }
+  .pill-blue { background: #e3f0fb; color: #1a5fa5; }
+  .log-box { background: #fafafa; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #aaa; font-family: 'SF Mono', 'Fira Code', monospace; min-height: 56px; max-height: 150px; overflow-y: auto; line-height: 1.8; border: 1px solid #f0f0ee; }
+  .log-ok { color: #3a7d1a; }
+  .log-err { color: #c0392b; }
+  .log-info { color: #1a5fa5; }
+  .log-warn { color: #a05a00; }
+  .divider { border: none; border-top: 1px solid #f0f0ee; margin: 14px 0; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #b5d4f4; border-top-color: #4a90d9; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📬 문의 처리 자동화</h1>
+  <p class="subtitle">메일 붙여넣기 → 분석 → 실적 시트 업데이트 + Salesforce 기회 등록</p>
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="card-title">✉️ 문의 메일 내용 붙여넣기 <span class="badge">Step 1</span></div>
+    <textarea id="mail-input" placeholder="메일 내용을 여기에 그대로 붙여넣으세요.
+발신자, 제목, 본문 모두 포함할수록 정확하게 추출됩니다."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-analyze" onclick="analyzeMail()">✨ 분석하기</button>
+      <button class="btn btn-ghost" onclick="clearAll()">초기화</button>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card">
+    <div class="card-title">👤 추출 정보 확인 및 수정 <span class="badge">Step 2</span></div>
+
+    <div class="sublabel">기본 정보</div>
+    <div class="field-row">
+      <span class="field-label">광고주</span>
+      <input class="field-input" id="f-advertiser" placeholder="없으면 비워두세요 → '광고주 미정' 자동 입력" oninput="updateDerived()" />
+    </div>
+    <div class="field-row">
+      <span class="field-label">대행사</span>
+      <input class="field-input" id="f-agency" placeholder="없으면 비워두세요" oninput="updateDerived()" />
+    </div>
+    <div class="field-row">
+      <span class="field-label">캠페인 내용</span>
+      <input class="field-input" id="f-campaign" placeholder="분석 후 자동 입력" oninput="updateDerived()" />
+    </div>
+    <div class="field-row">
+      <span class="field-label">문의 일자</span>
+      <input class="field-input" id="f-date" placeholder="YYYYMMDD" oninput="updateDerived()" />
+    </div>
+    <div class="field-row">
+      <span class="field-label">문의 내용</span>
+      <div class="mail-preview" id="mail-preview">분석 후 원본 메일이 SF에 그대로 입력됩니다</div>
+    </div>
+
+    <div class="sublabel">Salesforce 필드 미리보기</div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">기회 이름</span>
+      <input class="field-input readonly" id="sf-oppname" readonly />
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">계정 이름</span>
+      <span class="field-fixed" style="color:#e08800; font-size:12px;">✏️ SF에서 직접 입력&nbsp;<span id="sf-account-ref" style="color:#bbb;"></span></span>
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">대행사 계정</span>
+      <span class="field-fixed" style="color:#e08800; font-size:12px;">✏️ SF에서 직접 입력&nbsp;<span id="sf-agency-ref" style="color:#bbb;"></span></span>
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">유형 / 단계</span>
+      <span class="field-fixed">신규 / 신규</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">리드 소스</span>
+      <span class="field-fixed">이메일 문의</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">마감 일자</span>
+      <input class="field-input readonly" id="sf-closedate" readonly />
+    </div>
+    <div class="field-row">
+      <span class="field-label" style="color:#ccc;">문의 내용</span>
+      <span class="field-fixed" style="font-size:12px; font-style:italic;">↑ 붙여넣은 메일 원본 전체</span>
+    </div>
+    <p class="hint">💡 회색 필드는 자동 생성값입니다. 기본 정보를 수정하면 즉시 반영됩니다.</p>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card">
+    <div class="card-title">⚡ 처리 실행 <span class="badge">Step 3</span></div>
+
+    <div class="action-row">
+      <span class="action-icon">📊</span>
+      <div class="action-info">
+        <div class="action-title">실적 관리 시트 업데이트</div>
+        <div class="action-desc">Y열 기회수 +1 · 셀 메모에 광고주-대행사 기입</div>
+      </div>
+      <span id="status-sheet" class="pill" style="display:none;"></span>
+      <button class="btn btn-primary" id="btn-sheet" onclick="runSheet()" disabled>실행</button>
+    </div>
+
+    <div class="action-row">
+      <span class="action-icon">☁️</span>
+      <div class="action-info">
+        <div class="action-title">Salesforce 기회 등록</div>
+        <div class="action-desc">8개 필드 자동 입력된 SF 페이지 열기</div>
+      </div>
+      <span id="status-sf" class="pill" style="display:none;"></span>
+      <button class="btn" id="btn-sf" onclick="openSF()" disabled>링크 열기</button>
+    </div>
+
+    <div class="action-row" style="border-color:#ddd;">
+      <span class="action-icon">▶️</span>
+      <div class="action-info">
+        <div class="action-title">한 번에 실행</div>
+        <div class="action-desc">시트 업데이트 + SF 링크 동시 처리</div>
+      </div>
+      <button class="btn btn-primary" id="btn-all" onclick="runAll()" disabled>모두 실행</button>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:12px; font-weight:600; color:#aaa; margin-bottom:6px;">처리 로그</div>
+    <div class="log-box" id="log-box"><span>로그가 여기 표시됩니다</span></div>
+  </div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/kcd.co.kr/s/AKfycbxTDqElcg_PkpdXXuNSAcwgzKRW0z5hQ_6RzQri6oUclCEyOWapXo_eTe4e84BiLRwo/exec';
+const SF_BASE      = 'https://kcd.lightning.force.com/lightning/o/Opportunity/new';
+const PROXY_URL    = 'https://llm-proxy.dev.kcd.systems/chat/completions';
+const PROXY_TOKEN  = 'sk-sFNSvjm__V3YOBOfwA2XaA';
+const MODEL        = 'claude-sonnet-4-6';
+
+function log(msg, type='info') {
+  const box = document.getElementById('log-box');
+  if (box.querySelector('span')) box.innerHTML = '';
+  const line = document.createElement('div');
+  line.className = 'log-' + type;
+  const now = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  line.textContent = `[${now}] ${msg}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(id, text, type) {
+  const el = document.getElementById(id);
+  el.style.display = 'inline-flex';
+  el.className = 'pill pill-' + type;
+  el.textContent = text;
+}
+
+function enableActions(on) {
+  ['btn-sheet','btn-sf','btn-all'].forEach(id => document.getElementById(id).disabled = !on);
+}
+
+async function callProxy(systemPrompt, userPrompt) {
+  const resp = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${PROXY_TOKEN}`
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt }
+      ]
+    })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`HTTP ${resp.status}: ${errText}`);
+  }
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+function updateDerived() {
+  const advertiser = document.getElementById('f-advertiser').value.trim();
+  const agency     = document.getElementById('f-agency').value.trim();
+  const campaign   = document.getElementById('f-campaign').value.trim();
+  const date       = document.getElementById('f-date').value.trim();
+
+  const advertiserLabel = advertiser || '광고주 미정';
+
+  let oppName = `[광고] ${advertiserLabel}`;
+  if (agency)   oppName += `(${agency})`;
+  if (campaign) oppName += `_${campaign}`;
+  if (date)     oppName += `_${date}`;
+
+  document.getElementById('sf-oppname').value = oppName;
+  // 계정/대행사는 SF에서 직접 입력 — 참고값만 표시
+  const accountRef = document.getElementById('sf-account-ref');
+  if (accountRef) accountRef.textContent = (advertiser || agency) ? '(참고: ' + (advertiser || agency) + ')' : '';
+  const agencyRef = document.getElementById('sf-agency-ref');
+  if (agencyRef) agencyRef.textContent = agency ? '(참고: ' + agency + ')' : '';
+
+  if (date && date.length === 8) {
+    try {
+      const dt = new Date(`${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`);
+      dt.setDate(dt.getDate() + 30);
+      document.getElementById('sf-closedate').value =
+        `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    } catch(e) { document.getElementById('sf-closedate').value = ''; }
+  } else {
+    document.getElementById('sf-closedate').value = '';
+  }
+}
+
+function clearAll() {
+  document.getElementById('mail-input').value = '';
+  ['f-advertiser','f-agency','f-campaign','f-date',
+   'sf-oppname','sf-closedate'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  const accountRef = document.getElementById('sf-account-ref');
+  if (accountRef) accountRef.textContent = '';
+  const agencyRef = document.getElementById('sf-agency-ref');
+  if (agencyRef) agencyRef.textContent = '';
+  const preview = document.getElementById('mail-preview');
+  preview.textContent = '분석 후 원본 메일이 SF에 그대로 입력됩니다';
+  preview.classList.remove('filled');
+  ['status-sheet','status-sf'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('log-box').innerHTML = '<span>로그가 여기 표시됩니다</span>';
+  document.getElementById('btn-analyze').textContent = '✨ 분석하기';
+  enableActions(false);
+}
+
+async function analyzeMail() {
+  const text = document.getElementById('mail-input').value.trim();
+  if (!text) { log('메일 내용을 먼저 붙여넣어 주세요', 'err'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  btn.innerHTML = '<span class="spinner"></span> 분석 중...';
+  btn.disabled = true;
+  enableActions(false);
+  log('메일 분석 중...');
+
+  const now = new Date();
+  const today = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const currentYear = now.getFullYear();
+
+  try {
+    const raw = await callProxy(
+      `이메일에서 광고/마케팅 문의 정보를 추출하세요.
+순수 JSON만 반환하세요. 마크다운 없이.
+형식: {
+  "advertiser": "광고주명 (확인 불가면 빈 문자열)",
+  "agency": "대행사명 (없으면 빈 문자열)",
+  "campaign": "캠페인 내용 또는 문의 핵심 키워드 (15자 이내로 간결하게)",
+  "date": "문의 일자 YYYYMMDD (메일 수신/발송일 기준, 없으면 오늘 날짜 ${today}). 현재 연도는 반드시 ${currentYear}년임. 연도 2자리(예: 26)로 표기된 경우 ${currentYear}년대로 해석할 것"
+}
+- 광고주와 대행사가 동일하거나 구분 불가: agency는 빈 문자열
+- 광고주를 알 수 없으면 advertiser는 반드시 빈 문자열`,
+      `다음 이메일에서 정보를 추출해주세요:\n\n${text}`
+    );
+
+    const info = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    document.getElementById('f-advertiser').value = info.advertiser || '';
+    document.getElementById('f-agency').value     = info.agency     || '';
+    document.getElementById('f-campaign').value   = info.campaign   || '';
+    document.getElementById('f-date').value       = info.date       || today;
+
+    const preview = document.getElementById('mail-preview');
+    preview.textContent = text.slice(0, 120) + (text.length > 120 ? '…' : '');
+    preview.classList.add('filled');
+
+    updateDerived();
+    enableActions(true);
+    log('분석 완료 — 내용 확인 후 실행하세요', 'ok');
+  } catch(e) {
+    log('분석 실패: ' + e.message, 'err');
+  }
+
+  btn.innerHTML = '✨ 다시 분석';
+  btn.disabled = false;
+}
+
+async function runSheet() {
+  const advertiser = document.getElementById('f-advertiser').value.trim();
+  const agency     = document.getElementById('f-agency').value.trim();
+  if (!advertiser && !agency) { log('광고주 또는 대행사명을 입력해주세요', 'err'); return; }
+
+  const btn = document.getElementById('btn-sheet');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 처리 중...';
+  setStatus('status-sheet', '진행 중', 'blue');
+
+  const advertiserLabel = advertiser || '광고주 미정';
+  const memo = agency ? `${advertiserLabel} - ${agency}` : advertiserLabel;
+  const date = document.getElementById('f-date').value.trim();
+  log(`시트 업데이트 시작 — ${date} / 메모: "${memo}"`);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const cbName = 'gs_cb_' + Date.now();
+      const script = document.createElement('script');
+      const url = `${APPS_SCRIPT_URL}?memo=${encodeURIComponent(memo)}&date=${encodeURIComponent(date)}&callback=${cbName}`;
+
+      const timer = setTimeout(() => {
+        delete window[cbName];
+        document.body.removeChild(script);
+        reject(new Error('요청 시간 초과 (10초)'));
+      }, 10000);
+
+      window[cbName] = (parsed) => {
+        clearTimeout(timer);
+        delete window[cbName];
+        document.body.removeChild(script);
+        if (parsed.success) {
+          log(`✓ ${parsed.row}행 기회수 → ${parsed.newValue}로 업데이트, 메모: "${memo}"`, 'ok');
+          setStatus('status-sheet', '완료', 'ok');
+        } else {
+          log('시트 오류: ' + (parsed.error || '알 수 없는 오류'), 'err');
+          setStatus('status-sheet', '오류', 'err');
+        }
+        resolve();
+      };
+
+      script.onerror = () => {
+        clearTimeout(timer);
+        delete window[cbName];
+        document.body.removeChild(script);
+        reject(new Error('스크립트 로드 실패'));
+      };
+
+      script.src = url;
+      document.body.appendChild(script);
+    });
+  } catch(e) {
+    log('시트 오류: ' + e.message, 'err');
+    setStatus('status-sheet', '오류', 'err');
+  }
+  btn.disabled = false;
+  btn.textContent = '실행';
+}
+
+async function openSF() {
+  const oppName   = document.getElementById('sf-oppname').value;
+  const closeDate = document.getElementById('sf-closedate').value;
+  const mailText  = document.getElementById('mail-input').value.trim();
+
+  // Lightning defaultFieldValues: Description은 쉼표/줄바꿈 때문에 별도 파라미터로 분리
+  const fieldValues = [
+    ['Name',       oppName],
+    ['Type',       '신규'],
+    ['StageName',  '신규'],
+    ['LeadSource', '이메일 문의'],
+    ['CloseDate',  closeDate],
+  ];
+
+  const defaultFieldValues = encodeURIComponent(
+    fieldValues.map(([k, v]) => `${k}=${v}`).join(',')
+  );
+
+  const url = `${SF_BASE}?defaultFieldValues=${defaultFieldValues}`;
+
+  // SF는 Description을 URL로 지원 안 함 → 클립보드에 복사 후 SF 열기
+  try {
+    await navigator.clipboard.writeText(mailText);
+    log('📋 메일 내용이 클립보드에 복사됐습니다', 'ok');
+  } catch(e) {
+    log('클립보드 복사 실패 — 문의 내용을 직접 붙여넣으세요', 'warn');
+  }
+
+  window.open(url, '_blank');
+  setStatus('status-sf', '링크 열림', 'ok');
+  log(`SF 기회 등록 페이지 열기: "${oppName}"`, 'ok');
+  log('⚠️ SF 페이지에서: 문의 내용 필드에 Ctrl+V(붙여넣기) 해주세요', 'warn');
+  log('⚠️ 계정 이름 · 대행사 계정도 SF 페이지에서 직접 입력해주세요', 'warn');
+}
+
+async function runAll() {
+  const btn = document.getElementById('btn-all');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 처리 중...';
+  log('=== 한 번에 실행 ===');
+  await runSheet();
+  openSF();
+  btn.disabled = false;
+  btn.textContent = '모두 실행';
+  log('=== 완료 ===', 'ok');
+}
+</script>
+</body>
+</html>
